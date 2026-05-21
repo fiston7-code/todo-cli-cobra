@@ -12,6 +12,7 @@ import (
 
 var myStore = models.NewStore()
 var taskDesc string
+var taskTitle string
 
 var rootCmd = &cobra.Command{
 	Use:   "todo",
@@ -85,14 +86,53 @@ var deleteCmd = &cobra.Command{
 	},
 }
 
+var UpdateCmd = &cobra.Command{
+	// 💡 Ajout d'un espace pour que Cobra comprenne la séparation
+	Use:   "update [id]",
+	Short: "Modifier une tâche grâce à son ID",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		id, err := strconv.Atoi(args[0])
+		if err != nil {
+			fmt.Println("❌ L'ID doit être un nombre valide.")
+			return
+		}
+
+		// Sécurité : On vérifie que l'utilisateur n'envoie pas une modification totalement vide
+		if taskTitle == "" && taskDesc == "" {
+			fmt.Println("❌ Vous devez fournir au moins un élément à modifier : --title (-t) ou --desc (-d)")
+			return
+		}
+
+		// 💡 On passe 'taskTitle' (rempli par le flag) à ta méthode
+		err = myStore.UpdateTask(id, taskTitle, taskDesc)
+		if err != nil {
+			fmt.Printf("❌ Erreur : %v\n", err)
+			return
+		}
+
+		err = storage.Save(myStore.Tasks)
+		if err != nil {
+			fmt.Printf("❌ Erreur lors de la sauvegarde : %v\n", err)
+			return
+		}
+
+		// 💡 Correction de la faute de français pour faire plus pro ("modifiée")
+		fmt.Printf("📝 Tâche %d modifiée avec succès !\n", id)
+	},
+}
+
 func init() {
 	// 1. On attache la commande list
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(deleteCmd)
+	rootCmd.AddCommand(UpdateCmd)
 
 	// On lie le flag à notre variable taskDesc
 	addCmd.Flags().StringVarP(&taskDesc, "desc", "d", "", "La description de la tâche")
+	UpdateCmd.Flags().StringVarP(&taskTitle, "title", "t", "", "Le nouveau titre de la tâche")
+	UpdateCmd.Flags().StringVarP(&taskDesc, "desc", "d", "", "La nouvelle description de la tâche")
 
 	// 2. On charge les tâches via ton package storage
 	existingTasks, err := storage.Load()
